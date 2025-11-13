@@ -1,6 +1,5 @@
 import os.path
 import unittest
-import shutil
 from rest_call import get_data
 import support
 
@@ -79,6 +78,7 @@ class TestPowerPlantData(unittest.TestCase):
 
             self.assertEqual(actual_content, expect_content)
 
+
     def test_increments(self):
         query = f'sql {self.db_name} format=table and stat=false "SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data ORDER BY max_ts ASC;"'
         for increment in ['day, 1', 'day, 7', 'day, 30', 'day, 90', 'day, 180', 'day, 365', 'year, 1']:
@@ -96,6 +96,23 @@ class TestPowerPlantData(unittest.TestCase):
             expect_content = support.read_file(expect_file)
 
             self.assertEqual(actual_content, expect_content)
+
+    def test_increments_group_by(self):
+        query = f"sql {self.db_name} format=table and stat=false and include=(power_plant_pv) SELECT increments(year, 1, timestamp), monitor_id, min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, count(*) as row_count as row_count FROM power_plant GROUP BY monitor_id ORDER min_ts, monitor_id DESC"
+        fname = "increments_group_by_year_1.out"
+
+        results_file = os.path.join(self.actual_dir, fname)
+        expect_file = os.path.join(self.expect_dir, fname)
+
+        results = get_data(self.conn, query)
+        data = results.text
+
+        support.write_file(results_file, data)
+        support.copy_file(results_file, expect_file)
+        actual_content = support.read_file(results_file)
+        expect_content = support.read_file(expect_file)
+
+        self.assertEqual(actual_content, expect_content)
 
 
 if __name__ == "__main__":
