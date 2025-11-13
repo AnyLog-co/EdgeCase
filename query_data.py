@@ -2,6 +2,7 @@ import os.path
 import unittest
 import shutil
 from rest_call import get_data
+import support
 
 ROOT_DIR = os.path.dirname(__file__)
 
@@ -10,12 +11,11 @@ class TestPowerPlantData(unittest.TestCase):
         self.conn = conn
         self.db_name = db_name
         self.query_base = f"sql {db_name} format=json and stat=false"
+
         self.expect_dir = os.path.join(ROOT_DIR, 'expect')
-        if not os.path.isdir(self.expect_dir):
-            os.makedirs(self.expect_dir)
+        support.create_dir(self.expect_dir)
         self.actual_dir = os.path.join(ROOT_DIR, 'actual')
-        if not os.path.isdir(self.actual_dir):
-            os.makedirs(self.actual_dir)
+        support.create_dir(self.actual_dir)
 
     """
     Get rows count for tables in network
@@ -64,42 +64,39 @@ class TestPowerPlantData(unittest.TestCase):
         query = f"sql {self.db_name} format=table and stat=false SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data WHERE timestamp >= '2024-12-20 00:00:00' AND timestamp <= '2025-01-10 23:59:59' ORDER BY min_ts DESC"
         for increment in ['second, 1', 'second, 30', 'minute, 1', 'minute, 5', 'minute, 15', 'minute, 30',
                           'hour, 1', 'hour, 6', 'hour, 12', 'hour, 24']:
+
             fname = f"small_increments_{increment.strip().replace(' ', '').replace(',', '_')}.out"
-            results = get_data(self.conn, query % increment)
-            data = results.text
             results_file = os.path.join(self.actual_dir, fname)
             expect_file = os.path.join(self.expect_dir, fname)
-            with open(results_file, 'w') as f:
-                f.write(data)
-            if not os.path.isfile(expect_file):
-                shutil.copy(results_file, expect_file)
 
-            with open(results_file, "r", encoding="utf-8") as f1, open(expect_file, "r", encoding="utf-8") as f2:
-                content1 = f1.read()
-                content2 = f2.read()
+            results = get_data(self.conn, query % increment)
+            data = results.text
 
-            self.assertEqual(content1, content2, "Files do not match!")
+            support.write_file(results_file, data)
+            support.copy_file(results_file, expect_file)
+            actual_content = support.read_file(results_file)
+            expect_content = support.read_file(expect_file)
+
+            self.assertEqual(actual_content, expect_content)
 
     def test_increments(self):
         query = f'sql {self.db_name} format=table and stat=false "SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data ORDER BY max_ts ASC;"'
         for increment in ['day, 1', 'day, 7', 'day, 30', 'day, 90', 'day, 180', 'day, 365', 'year, 1']:
-            fname = f"increments_{increment.strip().replace(' ', '').replace(',','_')}.out"
-            results = get_data(self.conn, query % increment)
-            data = results.text
+
+            fname = f"increments_{increment.strip().replace(' ', '').replace(',', '_')}.out"
             results_file = os.path.join(self.actual_dir, fname)
             expect_file = os.path.join(self.expect_dir, fname)
-            with open(results_file, 'w') as f:
-                f.write(data)
-            if not os.path.isfile(expect_file):
-                shutil.copy(results_file, expect_file)
 
-            with open(results_file, "r", encoding="utf-8") as f1, open(expect_file, "r", encoding="utf-8") as f2:
-                content1 = f1.read()
-                content2 = f2.read()
+            results = get_data(self.conn, query % increment)
+            data = results.text
 
-            self.assertEqual(content1, content2, "Files do not match!")
+            support.write_file(results_file, data)
+            support.copy_file(results_file, expect_file)
+            actual_content = support.read_file(results_file)
+            expect_content = support.read_file(expect_file)
 
+            self.assertEqual(actual_content, expect_content)
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(verbosity=2)
