@@ -61,7 +61,7 @@ class TestPowerPlantData(unittest.TestCase):
     Basic increment test against rand_data
     """
     def test_small_increments(self):
-        query = f'sql {self.db_name} format=table and stat=false SELECT increments(%s, timestamp), min(timestamp)::ljust(19), max(timestamp)::ljust(19), min(value), avg(value)::float(3), max(value) FROM rand_data WHERE timestamp >= "2024-12-30 00:00:00" AND timestamp <="2025-01-02 23:59:59"'
+        query = f"sql {self.db_name} format=table and stat=false SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data WHERE timestamp >= '2024-12-20 00:00:00' AND timestamp <= '2025-01-10 23:59:59' ORDER BY min_ts DESC"
         for increment in ['second, 1', 'second, 30', 'minute, 1', 'minute, 5', 'minute, 15', 'minute, 30',
                           'hour, 1', 'hour, 6', 'hour, 12', 'hour, 24']:
             fname = f"small_increments_{increment.strip().replace(' ', '').replace(',', '_')}.out"
@@ -81,7 +81,7 @@ class TestPowerPlantData(unittest.TestCase):
             self.assertEqual(content1, content2, "Files do not match!")
 
     def test_increments(self):
-        query = f'sql {self.db_name} format=table and stat=false "SELECT increments(%s, timestamp), min(timestamp)::ljust(19), max(timestamp)::ljust(19), min(value), avg(value)::float(3), max(value) FROM rand_data;"'
+        query = f'sql {self.db_name} format=table and stat=false "SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data ORDER BY max_ts ASC;"'
         for increment in ['day, 1', 'day, 7', 'day, 30', 'day, 90', 'day, 180', 'day, 365', 'year, 1']:
             fname = f"increments_{increment.strip().replace(' ', '').replace(',','_')}.out"
             results = get_data(self.conn, query % increment)
