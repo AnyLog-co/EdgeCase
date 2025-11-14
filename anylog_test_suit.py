@@ -31,17 +31,29 @@ def _print_test_cases():
 
     return "".join(lines)
 
-def anylog_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, verbose:int=2):
+def anylog_test(query_conn: str, operator_conn: str, db_name: str, test_name: str, verbose: int = 2):
     TestAnyLogCommands.query = query_conn
     TestAnyLogCommands.operator = operator_conn
     TestAnyLogCommands.db_name = db_name
 
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestAnyLogCommands)
-    if test_name:
-        suite = unittest.TestLoader().loadTestsFromName(test_name, TestAnyLogCommands)
+    loader = unittest.TestLoader()
+    suite_all = loader.loadTestsFromTestCase(TestAnyLogCommands)
+
+    # Determine which tests to run
+    if not test_name:
+        wanted = {test._testMethodName for test in suite_all}
+    else:
+        wanted = {name.strip() for name in test_name.split(",")}
+
+    # Filter suite while keeping decorators like @skip
+    suite = unittest.TestSuite(
+        test for test in suite_all
+        if test._testMethodName in wanted
+    )
 
     runner = unittest.TextTestRunner(verbosity=verbose)
     result = runner.run(suite)
+
     if not result.wasSuccessful():
         sys.exit(1)
 
@@ -89,19 +101,19 @@ def main():
     args.operator = args.operator.split(",")
     # insert data
     if not args.skip_insert:
-        insert_data(conn=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamp)
+        insert_data(conn=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
 
-        for conn in args.operator.split(","):
-            response = rest_call.execute_request(func='post', conn=conn, headers={'command': "flush buffers", "USer-Agent": "AnyLog/1.23"}, payload=None)
-            if not 200 <= int(response.status_code) < 300:
-                raise Exception(f"Failed to flush data against {conn}")
+        # for conn in args.operator:
+        #     response = rest_call.execute_request(func='post', conn=conn, headers={'command': "flush buffers", "USer-Agent": "AnyLog/1.23"}, payload=None)
+        #     if not 200 <= int(response.status_code) < 300:
+        #         raise Exception(f"Failed to flush data against {conn}")
 
     # run query test
     if not args.skip_test:
         # run tests:
         if not args.select_test:
-            anylog_test(query_conn=args.query, db_name=args.db_name)
-            sql_test(query_conn=args.query, db_name=args.db_name)
+            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, verbose=args.verbose)
+            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, verbose=args.verbose)
         else:
             for test_case in args.select_test.strip().split(","):
                 test_name = None

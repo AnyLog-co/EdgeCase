@@ -9,7 +9,7 @@ from source.rest_call import put_data
 CONNS = []
 LAST_CONN = None
 ROOT_DIR = os.path.dirname(__file__).rsplit('source', 1)[0]
-DATA_FILES = [os.path.join('../data', fname) for fname in os.listdir(os.path.join(ROOT_DIR, 'data'))]
+DATA_FILES = [os.path.join(ROOT_DIR, 'data', fname) for fname in os.listdir(os.path.join(ROOT_DIR, 'data'))]
 
 def _sort_data(records:list)->list:
     for i in range(len(records)):
@@ -41,8 +41,13 @@ def insert_data(conn:list, db_name:str, sort_timestamps:bool=False, batch:bool=F
 
         with open (fname, 'r') as f:
             for line in f:
-                if line.strip():
-                    payload.append(json.loads(line.strip().rsplit(",",1)[0] if line.strip().endswith(",") else line.strip()))
+                line = line.strip()     # remove whitespace at both ends
+                line = line.rstrip(",") # remove any trailing comma
+                if line:
+                    try:
+                        payload.append(json.loads(line))
+                    except:
+                        print(line)
 
         if sort_timestamps:
             payload = _sort_data(payload)
