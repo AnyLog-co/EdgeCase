@@ -1,11 +1,11 @@
 import os.path
 import unittest
-from rest_call import get_data
-import support
+from source.rest_call import get_data
+from source import support
 from contextlib import contextmanager
 
 
-ROOT_DIR = os.path.dirname(__file__)
+ROOT_DIR = os.path.dirname(__file__).rsplit('tests', 1)[0]
 
 class TestSQLCommands(unittest.TestCase):
     conn = None

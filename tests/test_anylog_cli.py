@@ -1,11 +1,21 @@
 import os
 import unittest
 
-from rest_call import get_data
+from source.rest_call import get_data
 from contextlib import contextmanager
 import random
 
-ROOT_DIR = os.path.dirname(__file__)
+ROOT_DIR = os.path.dirname(__file__).rsplit('tests', 1)[0]
+DATA_TYPES_EQUIVALENTS = {
+            'decimal': ['decimal', 'numeric', 'float', 'double precision', 'real'],
+            'float': ['float', 'double precision', 'real', 'numeric', 'decimal'],
+            'int': ['int', 'integer', 'bigint', 'smallint'],
+            'char': ['char', 'character', 'character varying', 'varchar'],
+            'timestamp without time zone': ['timestamp', 'timestamp without time zone'],
+            'timestamp with time zone': ['timestamptz', 'timestamp with time zone'],
+            'bool': ['boolean', 'bool'],
+        }
+
 
 class TestAnyLogCommands(unittest.TestCase):
     # Class variables to be set before running tests
@@ -149,16 +159,6 @@ class TestAnyLogCommands(unittest.TestCase):
         }
 
         # Map equivalent types across DBs/drivers
-        type_equivalents = {
-            'decimal': ['decimal', 'numeric', 'float', 'double precision', 'real'],
-            'float': ['float', 'double precision', 'real', 'numeric', 'decimal'],
-            'int': ['int', 'integer', 'bigint', 'smallint'],
-            'char': ['char', 'character', 'character varying', 'varchar'],
-            'timestamp without time zone': ['timestamp', 'timestamp without time zone'],
-            'timestamp with time zone': ['timestamptz', 'timestamp with time zone'],
-            'bool': ['boolean', 'bool'],
-        }
-
         for table, columns in expected.items():
             command = f"get columns where dbms={self.db_name} and table={table} and format=json"
             result = get_data(conn, command, destination="")
@@ -173,10 +173,10 @@ class TestAnyLogCommands(unittest.TestCase):
                     expected_type_lower = expected_type.lower()
                     actual_type_lower = actual_type.lower()
 
-                    if expected_type_lower in type_equivalents:
+                    if expected_type_lower in DATA_TYPES_EQUIVALENTS:
                         self.assertIn(
                             actual_type_lower,
-                            type_equivalents[expected_type_lower],
+                            DATA_TYPES_EQUIVALENTS[expected_type_lower],
                             msg=f"Column '{col}' in table '{table}': expected {expected_type}, got {actual_type}"
                         )
                     else:

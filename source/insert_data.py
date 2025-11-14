@@ -4,12 +4,12 @@ import os
 import datetime
 import random
 
-from rest_call import put_data
+from source.rest_call import put_data
 
 CONNS = []
 LAST_CONN = None
-ROOT_DIR = os.path.dirname(__file__)
-DATA_FILES = [os.path.join('data', fname) for fname in os.listdir(os.path.join(ROOT_DIR, 'data'))]
+ROOT_DIR = os.path.dirname(__file__).rsplit('source', 1)[0]
+DATA_FILES = [os.path.join('../data', fname) for fname in os.listdir(os.path.join(ROOT_DIR, 'data'))]
 
 def _sort_data(records:list)->list:
     for i in range(len(records)):

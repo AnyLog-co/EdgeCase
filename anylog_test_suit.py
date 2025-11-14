@@ -2,10 +2,10 @@ import argparse
 import unittest
 import sys
 
-import rest_call
-from insert_data import insert_data
-from test_sql_queries import TestSQLCommands
-from test_anylog_cli import TestAnyLogCommands
+from source import rest_call
+from source.insert_data import insert_data
+from tests.test_sql_queries import TestSQLCommands
+from tests.test_anylog_cli import TestAnyLogCommands
 
 def _list_methods(cls_name):
     list_methods = []

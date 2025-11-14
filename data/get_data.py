@@ -5,7 +5,7 @@ import json
 import paho.mqtt.client as mqtt
 
 # ----------------- CONFIG -----------------
-DATA_DIR = 'data'
+DATA_DIR = '.'
 HOST = "172.104.228.251"
 PORT = 1883
 USER = "anyloguser"
