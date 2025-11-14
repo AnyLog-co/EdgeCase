@@ -28,7 +28,7 @@ The test does the following steps:
 5. store summary to file(s)
 
 
-## Updating Setup
+## Updating Code
 
 ### Adding New Data 
 Add JSON file(s) to [data](data) directory - [insert_data.py](insert_data.py) will automatically grab the JSON file(s) 
