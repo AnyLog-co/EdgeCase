@@ -2,7 +2,6 @@ import argparse
 import unittest
 import sys
 
-from source import rest_call
 from source.insert_data import insert_data
 from tests.test_sql_queries import TestSQLCommands
 from tests.test_anylog_cli import TestAnyLogCommands
@@ -31,10 +30,31 @@ def _print_test_cases():
 
     return "".join(lines)
 
-def anylog_test(query_conn: str, operator_conn: str, db_name: str, test_name: str, verbose: int = 2):
+def _remove_skip_decorators(testcase_cls):
+    # Remove decorator-based skips
+    for attr_name, attr_value in list(testcase_cls.__dict__.items()):
+        func = getattr(attr_value, "__func__", attr_value)  # handle bound methods
+        if hasattr(func, "__unittest_skip__") and func.__unittest_skip__:
+            func.__unittest_skip__ = False
+            func.__unittest_skip_why__ = None
+
+    # Patch all future instances to ignore skipTest()
+    original_init = testcase_cls.__init__
+
+    def new_init(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        self.skipTest = lambda reason=None: None  # no-op
+
+    testcase_cls.__init__ = new_init
+
+
+def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str, ignore_skip:bool=False, verbose:int=2):
     TestAnyLogCommands.query = query_conn
     TestAnyLogCommands.operator = operator_conn
     TestAnyLogCommands.db_name = db_name
+
+    if ignore_skip:
+        _remove_skip_decorators(TestAnyLogCommands)
 
     loader = unittest.TestLoader()
     suite_all = loader.loadTestsFromTestCase(TestAnyLogCommands)
@@ -58,13 +78,23 @@ def anylog_test(query_conn: str, operator_conn: str, db_name: str, test_name: st
         sys.exit(1)
 
 
-def sql_test(query_conn:str, db_name:str, test_name:str=None, verbose:int=2):
+
+def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
     TestSQLCommands.conn = query_conn
     TestSQLCommands.db_name = db_name
 
+    if ignore_skip:
+        _remove_skip_decorators(TestSQLCommands)
+
     suite = unittest.TestLoader().loadTestsFromTestCase(TestSQLCommands)
-    if test_name:
-        suite = unittest.TestLoader().loadTestsFromName(test_name,TestSQLCommands)
+    test_cases =  {test._testMethodName for test in suite} if not test_name else test_name
+
+
+    if not ignore_skip and not isinstance(test_cases, str):
+        suite = unittest.TestSuite(test for test in suite if test._testMethodName in test_cases)
+    elif not ignore_skip:
+        suite = unittest.TestSuite(test_cases)
+
     runner = unittest.TextTestRunner(verbosity=verbose)
     result = runner.run(suite)
     if not result.wasSuccessful():
@@ -92,10 +122,12 @@ def main():
     parse.add_argument('--db-name',         required=False, type=str,                         default=None, help="Logical database name")
     parse.add_argument('--sort-timestamps', required=False, type=bool, nargs='?', const=True, default=False, help='Insert values in chronological order')
     parse.add_argument('--batch',           required=False, type=bool, nargs='?', const=True, default=False, help='Insert a single data batch')
-    parse.add_argument('--skip-insert',     required=False, type=bool,  nargs='?', const=True, default=False, help="Skip data insertion")
+    parse.add_argument('--skip-insert',     required=False, type=bool, nargs='?', const=True, default=False, help="Skip data insertion")
     parse.add_argument('--skip-test',       required=False, type=bool, nargs='?', const=True, default=False, help="Skip running unit tests")
     parse.add_argument('--verbose',         required=False, type=int,                         default=2,     help="Test verbosity level (0, 1, 2)")
     parse.add_argument('--select-test',     required=False, type=str,                         default=None, help="(comma separated) specific test(s) to run")
+    parse.add_argument('--ignore-skip',     required=False, type=bool, nargs='?', const=True, default=False, help='run all tests, ignoring @unittest.skip cmd')
+
     args = parse.parse_args()
 
     args.operator = args.operator.split(",")
@@ -103,17 +135,12 @@ def main():
     if not args.skip_insert:
         insert_data(conn=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
 
-        # for conn in args.operator:
-        #     response = rest_call.execute_request(func='post', conn=conn, headers={'command': "flush buffers", "USer-Agent": "AnyLog/1.23"}, payload=None)
-        #     if not 200 <= int(response.status_code) < 300:
-        #         raise Exception(f"Failed to flush data against {conn}")
-
     # run query test
     if not args.skip_test:
         # run tests:
         if not args.select_test:
-            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, verbose=args.verbose)
-            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, verbose=args.verbose)
+            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
         else:
             for test_case in args.select_test.strip().split(","):
                 test_name = None
@@ -122,9 +149,9 @@ def main():
 
                 if test_case == 'anylog':
                     anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name,
-                                test_name=test_name, verbose=args.verbose)
+                                test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "sql":
-                    sql_test(query_conn=args.query, db_name=args.db_name, test_name=test_name, verbose=args.verbose)
+                    sql_test(query_conn=args.query, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
 
 
 
