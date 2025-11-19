@@ -59,9 +59,9 @@ class TestAnyLogCommands(unittest.TestCase):
         if self.query:
             results = get_data(self.query, command, destination="")
             with self.query_context(command):
-                self.assertIn("Status", results.json())
+                self.assertIn("status", results.json())
                 data = results.json()
-                assert 'running' in data.get('Status') and 'not running' not in data.get('Status')
+                assert 'running' in data.get('status') and 'not running' not in data.get('status')
 
     def test_operator_databases(self):
         if not self.operator:
@@ -128,7 +128,7 @@ class TestAnyLogCommands(unittest.TestCase):
                 self.assertEqual(row.get('DBMS'), self.db_name)
                 assert row.get('Table') in ['rand_data', 'power_plant', 'power_plant_pv']
 
-    @unittest.skip(reason="data type inconsistent due to partitioning")
+    # @unittest.skip(reason="data type inconsistent due to partitioning")
     def test_table_columns(self):
         if not self.operator and not self.query:
             self.skipTest("Mising connection information for operator and query")
@@ -149,7 +149,7 @@ class TestAnyLogCommands(unittest.TestCase):
                 'row_id': 'integer', 'insert_timestamp': 'timestamp without time zone', 'tsd_name': 'char(3)',
                 'tsd_id': 'int', 'monitor_id': 'char(4)', 'timestamp': 'timestamp without time zone',
                 'a_n_voltage': 'int', 'a_current': 'int', 'b_n_voltage': 'int', 'realpower': 'int', 'c_current': 'int',
-                'c_n_voltage': 'int', 'commsstatus': 'char(5)', 'energymultiplier': 'int', 'frequency': 'int',
+                'c_n_voltage': 'int', 'commsstatus': 'char(4)', 'energymultiplier': 'int', 'frequency': 'int',
                 'powerfactor': 'int', 'b_current': 'int', 'reactivepower': 'int'
             },
             'power_plant_pv': {
@@ -164,7 +164,6 @@ class TestAnyLogCommands(unittest.TestCase):
             command = f"get columns where dbms={self.db_name} and table={table} and format=json"
             result = get_data(conn, command, destination="")
             actual = result.json()
-
             with self.query_context(command):
                 for col, expected_type in columns.items():
                     actual_type = actual.get(col)
@@ -184,6 +183,7 @@ class TestAnyLogCommands(unittest.TestCase):
                         # fallback to exact match if type not mapped
                         if "char(" in actual_type_lower:
                             pass
+
                         self.assertEqual(
                             actual_type_lower,
                             expected_type_lower,

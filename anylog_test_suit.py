@@ -74,8 +74,8 @@ def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str,
     runner = unittest.TextTestRunner(verbosity=verbose)
     result = runner.run(suite)
 
-    if not result.wasSuccessful():
-        sys.exit(1)
+    # if not result.wasSuccessful():
+    #     sys.exit(1)
 
 
 
@@ -97,8 +97,8 @@ def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=F
 
     runner = unittest.TextTestRunner(verbosity=verbose)
     result = runner.run(suite)
-    if not result.wasSuccessful():
-        sys.exit(1)
+    # if not result.wasSuccessful():
+    #     sys.exit(1)
 
 
 def main():

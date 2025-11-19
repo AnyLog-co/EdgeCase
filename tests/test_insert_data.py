@@ -1,14 +1,36 @@
 import json
+import time
 import unittest
 import source.rest_call as rest_call
 from contextlib import contextmanager
 
 DATA = [
-    {"user": "Mike", "value1": 3, "value2": 3.14},
-    {"user": "Bruce", "value1": 4, "value2": 6.14},
-    {"user": "Kyle", "value1": 6},
-    {"value1": 8, "value2": 18},
+    # full data
+    {"timestamp": "2025-11-16 12:20:43.058968", "acct": "Mike",  "value1": 3,  "value2":3},
+    {"timestamp": "2025-11-16 12:22:43.058968", "acct": "Bruce", "value1": 4,  "value2": 7},
+    # missing value2
+    {"timestamp": "2025-11-16 12:24:43.058968", "acct": "Kyle",  "value1": 6},
+    # missing user
+    {"timestamp": "2025-11-16 12:26:43.058968",                  "value1": 8,  "value2": 5},
+    # missing timestamp
+    {                                           "acct": "Don",  "value1": 3,  "value2":3}, # fails to insert when timestamp is NULL
 ]
+
+
+def insert_data(conn:str, db_name:str):
+    for row in DATA:
+        rest_call.put_data(conn=conn, payload=json.dumps(row), dbms=db_name, table="t1")
+        if DATA.index(row) > 0:
+            time.sleep(0)
+    #     if DATA.index(row) == 1:
+    #         rest_call.execute_request(func="post", conn=self.operator,
+    #                                   headers={"command": "flush buffers", "User-Agent": "AnyLog/1.23"})
+    #         time.sleep(5)
+    # rest_call.execute_request(func="post", conn=self.operator,
+    #                           headers={"command": "flush buffers", "User-Agent": "AnyLog/1.23"})
+    # time.sleep(5)
+
+
 
 class TestInserts(unittest.TestCase):
     # Class variables to be set before running tests
@@ -16,7 +38,9 @@ class TestInserts(unittest.TestCase):
     operator = None
     db_name = None
     skip_insert = None
-    def setUp(self):
+
+    @classmethod
+    def setUpClass(self):
         # Ensure required parameters are set
         self.query = '172.23.160.85:32149'
         self.operator = '172.23.160.85:32149'
@@ -27,7 +51,7 @@ class TestInserts(unittest.TestCase):
         # assert self.db_name
 
         if not self.skip_insert:
-            self.insert_data()
+            insert_data(conn=self.operator, db_name=self.db_name)
 
     @contextmanager
     def query_context(self, query:str):
@@ -38,11 +62,6 @@ class TestInserts(unittest.TestCase):
             print("\n❌ Assertion failed for query:\n", query)
             raise
 
-
-    def insert_data(self):
-        for row in DATA:
-            rest_call.put_data(conn=self.operator, payload=json.dumps(row), dbms=self.db_name, table="t1")
-
     def test_row_count(self):
         query =  f"sql {self.db_name} format=json and stat=false select count(*) as row_count from t1"
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
@@ -51,30 +70,30 @@ class TestInserts(unittest.TestCase):
             self.assertIn('Query', data)
             content = data.get('Query')
             self.assertIn("row_count", content[0])
-            self.assertEqual(content[0].get("row_count"), 4)
+            self.assertEqual(content[0].get("row_count"), len(DATA))
 
     def test_raw_data(self):
         expected = [
-            {'user': '', 'value1': 8, 'value2': 18.0},
-            {'user': 'Bruce', 'value1': 4, 'value2': 6.14},
-            {'user': 'Kyle', 'value1': 6, 'value2': ''},
-            {'user': 'Mike', 'value1': 3, 'value2': 3.14}
+            {'acct': '',      'value1': 8, 'value2': 5},
+            {'acct': 'Bruce', 'value1': 4, 'value2': 7},
+            {'acct': 'Don',   'value1': 3, 'value2': 3},
+            {'acct': 'Kyle',  'value1': 6, 'value2': ''},
+            {'acct': 'Mike',  'value1': 3, 'value2': 3}
         ]
 
-
-        query =  f"sql {self.db_name} format=json and stat=false select  user, value1, value2 from t1 order by user"
+        query =  f"sql {self.db_name} format=json and stat=false select  acct, value1, value2 from t1 order by acct"
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
         data = response.json()
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
-            # print(content)
             self.assertEqual(content, expected)
+
 
     def test_avg_values(self):
         expected = {
-            'value1': 5.25,
-            'value2': 9.093333333333334
+            'value1': 4.8,
+            'value2': 4.5
         }
 
         query = f"sql {self.db_name} format=json and stat=false select  avg(value1) as value1, avg(value2) as value2 from t1"
@@ -83,16 +102,18 @@ class TestInserts(unittest.TestCase):
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
+            # print(content)
             self.assertEqual(content[0], expected)
 
     def test_values_count(self):
-        expected = {"user": 3, 'value1': 4, 'value2': 3}
-        query = f"sql {self.db_name} format=json and stat=false select  count(user) as user, count(value1) as value1, count(value2) as value2 from t1"
+        expected = {'acct': 4, 'value1': 5, 'value2': 4}
+        query = f"sql {self.db_name} format=json and stat=false select  count(acct) as acct, count(value1) as value1, count(value2) as value2 from t1"
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
         data = response.json()
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
+            # print(content)
             self.assertEqual(content[0], expected)
 
     def test_name_where(self):
