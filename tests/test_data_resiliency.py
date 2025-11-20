@@ -12,5 +12,6 @@
         -> SELECT increments
         -> WHERE period
 :complex:
-    - if an (main) operator is killed data still returned
+    - if main has (a subset of data) and "backup" has more and we query from more, what happens?
+    - if a (main) operator is killed data still returned
 """
