@@ -6,6 +6,7 @@ import sys
 from source.insert_data import insert_data
 from tests.test_sql_queries import TestSQLCommands
 from tests.test_anylog_cli import TestAnyLogCommands
+from tests.test_blockchain_policies import TestBlockchainPolicies
 from source.rest_call import execute_request
 
 def _list_methods(cls_name):
@@ -17,8 +18,9 @@ def _list_methods(cls_name):
 
 def _print_test_cases():
     test_cases = {
-        'anylog': _list_methods(TestAnyLogCommands),
-        'sql': _list_methods(TestSQLCommands)
+        'anylog':     _list_methods(TestAnyLogCommands),
+        'blockchain': _list_methods(TestBlockchainPolicies),
+        'sql':        _list_methods(TestSQLCommands),
     }
 
     # Find the longest "key:" length (including colon)
@@ -50,11 +52,10 @@ def _remove_skip_decorators(testcase_cls):
     testcase_cls.__init__ = new_init
 
 
-def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str, ignore_skip:bool=False, is_standalone:bool=False, verbose:int=2):
+def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str, ignore_skip:bool=False, verbose:int=2):
     TestAnyLogCommands.query = query_conn
     TestAnyLogCommands.operator = operator_conn
     TestAnyLogCommands.db_name = db_name
-    TestAnyLogCommands.is_standalone = is_standalone
 
     if ignore_skip:
         _remove_skip_decorators(TestAnyLogCommands)
@@ -79,6 +80,34 @@ def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str,
 
     # if not result.wasSuccessful():
     #     sys.exit(1)
+
+
+def blockchain_test(query_conn:str, is_standalone:bool=False, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    TestBlockchainPolicies.query = query_conn
+    TestBlockchainPolicies.is_standalone = is_standalone
+
+    if ignore_skip:
+        _remove_skip_decorators(TestBlockchainPolicies)
+
+    loader = unittest.TestLoader()
+    suite_all = loader.loadTestsFromTestCase(TestBlockchainPolicies)
+
+    # Determine which tests to run
+    if not test_name:
+        wanted = {test._testMethodName for test in suite_all}
+    else:
+        wanted = {name.strip() for name in test_name.split(",")}
+
+    # Filter suite while keeping decorators like @skip
+    suite = unittest.TestSuite(
+        test for test in suite_all
+        if test._testMethodName in wanted
+    )
+
+    runner = unittest.TextTestRunner(verbosity=verbose)
+    result = runner.run(suite)
+
+
 
 
 
@@ -142,11 +171,22 @@ def main():
         time.sleep(10)
 
 
+
     # run query test
     if not args.skip_test:
         # run tests:
         if not args.select_test:
-            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, is_standalone=args.is_standalone, verbose=args.verbose)
+            print("Testing related to Node status and configuration")
+            sys.stdout.flush()
+            time.sleep(0.5)
+            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            print("Testing related to blockchain policy params and relationships")
+            sys.stdout.flush()
+            time.sleep(0.5)
+            blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            print("Testing related to (basic) data queries")
+            sys.stdout.flush()
+            time.sleep(0.5)
             sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
         else:
             for test_case in args.select_test.strip().split(","):
@@ -155,9 +195,16 @@ def main():
                     test_case, test_name = test_case.split(".")
 
                 if test_case == 'anylog':
-                    anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name,
-                                test_name=test_name, ignore_skip=args.ignore_skip, is_standalone=args.is_standalone, verbose=args.verbose)
+                    print("Testing related to Node status and configuration")
+                    sys.stdout.flush()
+                    anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip,  verbose=args.verbose)
+                if test_case == 'blockchain':
+                    print("Testing related to blockchain policy params and relationships")
+                    sys.stdout.flush()
+                    blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "sql":
+                    print("Testing related to (basic) data queries")
+                    sys.stdout.flush()
                     sql_test(query_conn=args.query, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
 
 
