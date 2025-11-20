@@ -1,10 +1,12 @@
 import argparse
+import time
 import unittest
 import sys
 
 from source.insert_data import insert_data
 from tests.test_sql_queries import TestSQLCommands
 from tests.test_anylog_cli import TestAnyLogCommands
+from source.rest_call import execute_request
 
 def _list_methods(cls_name):
     list_methods = []
@@ -48,10 +50,11 @@ def _remove_skip_decorators(testcase_cls):
     testcase_cls.__init__ = new_init
 
 
-def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str, ignore_skip:bool=False, verbose:int=2):
+def anylog_test(query_conn: str, operator_conn: str, db_name:str, test_name:str, ignore_skip:bool=False, is_standalone:bool=False, verbose:int=2):
     TestAnyLogCommands.query = query_conn
     TestAnyLogCommands.operator = operator_conn
     TestAnyLogCommands.db_name = db_name
+    TestAnyLogCommands.is_standalone = is_standalone
 
     if ignore_skip:
         _remove_skip_decorators(TestAnyLogCommands)
@@ -127,19 +130,23 @@ def main():
     parse.add_argument('--verbose',         required=False, type=int,                         default=2,     help="Test verbosity level (0, 1, 2)")
     parse.add_argument('--select-test',     required=False, type=str,                         default=None, help="(comma separated) specific test(s) to run")
     parse.add_argument('--ignore-skip',     required=False, type=bool, nargs='?', const=True, default=False, help='run all tests, ignoring @unittest.skip cmd')
-
+    parse.add_argument('--is-standalone',   required=False, type=bool, nargs='?', const=True, default=False, help="Node is a standalone instance (master, operator and query in 1 container")
     args = parse.parse_args()
 
     args.operator = args.operator.split(",")
     # insert data
     if not args.skip_insert:
-        insert_data(conn=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
+        insert_data(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
+        for operator in args.operator:
+            execute_request(func='POST', conn=operator, headers={"command": "flush buffers", "User-Agent": "AnyLog/1.23"}, payload=None)
+        time.sleep(10)
+
 
     # run query test
     if not args.skip_test:
         # run tests:
         if not args.select_test:
-            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, is_standalone=args.is_standalone, verbose=args.verbose)
             sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
         else:
             for test_case in args.select_test.strip().split(","):
@@ -149,7 +156,7 @@ def main():
 
                 if test_case == 'anylog':
                     anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name,
-                                test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
+                                test_name=test_name, ignore_skip=args.ignore_skip, is_standalone=args.is_standalone, verbose=args.verbose)
                 if test_case == "sql":
                     sql_test(query_conn=args.query, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
 

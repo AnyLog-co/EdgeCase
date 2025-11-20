@@ -9,7 +9,7 @@ def execute_request(func:str, conn:str, headers:dict, payload:str=None):
         elif func.upper() == 'PUT':
             response = requests.put(url=f"http://{conn}", headers=headers, data=payload)
         elif func.upper() == 'POST':
-            response = requests.put(url=f"http://{conn}", headers=headers, data=payload)
+            response = requests.post(url=f"http://{conn}", headers=headers, data=payload)
         else:
             raise ValueError(f'Invalid user input {func.upper()}')
         response.raise_for_status()

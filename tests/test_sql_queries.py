@@ -1,3 +1,13 @@
+"""
+The following tests basic AnyLog functionality
+- SELECT count with include
+- SELECT count with include and extend
+- SELECT min/max timestamp, min/max/avg/count value
+- SELECT monitor_id, min/max timestamp, count value group by monitor_id
+- increments
+- period
+"""
+
 import os.path
 import unittest
 from source.rest_call import get_data

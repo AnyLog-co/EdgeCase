@@ -66,7 +66,7 @@ The test does the following steps:
    * Master, 2 operator, query
    * Master, 2 operator (HA), query
    * Master, 3 operators (2 HA), query 
-2. Insert data in parallel and using POST or MQTT 
+2. Insert data using POST or MQTT 
 3. Remove data and associated blockchain policies from network 
 4. teardown the entire network (used for overnight / testing) if everything passed 
 5. store summary to file(s)
