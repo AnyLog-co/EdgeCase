@@ -54,81 +54,64 @@ def _remove_skip_decorators(testcase_cls):
     testcase_cls.__init__ = new_init
 
 
+def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+
+    if ignore_skip or test_name:
+        _remove_skip_decorators(test_class_name)
+
+    loader = unittest.TestLoader()
+    suite_all = loader.loadTestsFromTestCase(test_class_name)
+
+    wanted = {test._testMethodName for test in suite_all}
+    if test_name:
+        wanted = {test for  test in test_name}
+
+    suite = unittest.TestSuite(
+        test for test in suite_all
+        if test._testMethodName in wanted
+    )
+
+    runner = unittest.TextTestRunner(verbosity=verbose)
+    runner.run(suite)
+
+    sys.stdout.flush()
+    time.sleep(0.5)
+
+
+
 def anylog_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to Node status and configuration")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestAnyLogCommands.query = query_conn
     TestAnyLogCommands.operator = operator_conn
     TestAnyLogCommands.db_name = db_name
 
-    if ignore_skip:
-        _remove_skip_decorators(TestAnyLogCommands)
-
-    loader = unittest.TestLoader()
-    suite_all = loader.loadTestsFromTestCase(TestAnyLogCommands)
-
-    # Determine which tests to run
-    if not test_name:
-        wanted = {test._testMethodName for test in suite_all}
-    else:
-        wanted = {name.strip() for name in test_name.split(",")}
-
-    # Filter suite while keeping decorators like @skip
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
-
-    # if not result.wasSuccessful():
-    #     sys.exit(1)
+    _run_test(test_class_name=TestAnyLogCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 
 def blockchain_test(query_conn:str, is_standalone:bool=False, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to blockchain policy params and relationships")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestBlockchainPolicies.query = query_conn
     TestBlockchainPolicies.is_standalone = is_standalone
 
-    if ignore_skip:
-        _remove_skip_decorators(TestBlockchainPolicies)
+    _run_test(test_class_name=TestBlockchainPolicies, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
-    loader = unittest.TestLoader()
-    suite_all = loader.loadTestsFromTestCase(TestBlockchainPolicies)
-
-    # Determine which tests to run
-    if not test_name:
-        wanted = {test._testMethodName for test in suite_all}
-    else:
-        wanted = {name.strip() for name in test_name.split(",")}
-
-    # Filter suite while keeping decorators like @skip
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
 
 def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to (basic) data queries")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestSQLCommands.conn = query_conn
     TestSQLCommands.db_name = db_name
 
-    if ignore_skip and not test_name:
-        _remove_skip_decorators(TestSQLCommands)
+    _run_test(test_class_name=TestSQLCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestSQLCommands)
-    test_cases =  {test._testMethodName for test in suite} if not test_name else test_name
-
-
-    if not ignore_skip and not isinstance(test_cases, str):
-        suite = unittest.TestSuite(test for test in suite if test._testMethodName in test_cases)
-    elif not ignore_skip:
-        suite = unittest.TestSuite(test_cases)
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
-    # if not result.wasSuccessful():
-    #     sys.exit(1)
 
 def null_data_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, skip_insert:bool=False, ignore_skip:bool=False, verbose:int=2):
     TestNullData.query = query_conn
@@ -136,27 +119,7 @@ def null_data_test(query_conn:str, operator_conn:str, db_name:str, test_name:str
     TestNullData.db_name = db_name
     TestNullData.skip_insert = skip_insert
 
-    if ignore_skip:
-        _remove_skip_decorators(TestNullData)
-
-    loader = unittest.TestLoader()
-    suite_all = loader.loadTestsFromTestCase(TestNullData)
-
-    # Determine which tests to run
-    if not test_name:
-        wanted = {test._testMethodName for test in suite_all}
-    else:
-        wanted = {name.strip() for name in test_name.split(",")}
-
-    # Filter suite while keeping decorators like @skip
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
-
+    _run_test(test_class_name=TestNullData, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 def main():
     """
@@ -188,6 +151,8 @@ def main():
     args = parse.parse_args()
 
     args.operator = args.operator.split(",")
+
+
     # insert data
     if not args.skip_insert:
         print("Inserting Data")
@@ -198,43 +163,34 @@ def main():
 
     # run query test
     if not args.skip_test:
-        # run tests:
-        if not args.select_test:
-            print("Testing related to Node status and configuration")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
-            print("Testing related to blockchain policy params and relationships")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
-            print("Testing related to (basic) data queries")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
-            print("Testing Null or empty column values in data")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            # null_data_test()
-
-        else:
+        selected_tests = {}
+        if args.select_test:
             for test_case in args.select_test.strip().split(","):
                 test_name = None
                 if '.' in test_case:
                     test_case, test_name = test_case.split(".")
 
+                if test_case not in selected_tests:
+                    selected_tests[test_case] = []
+                if test_name:
+                    selected_tests[test_case].append(test_name.strip())
+
+            # for test_case in selected_tests:
+            #     selected_tests[test_case] = dict(selected_tests[test_case])
+
+            for test_case in selected_tests:
                 if test_case == 'anylog':
-                    print("Testing related to Node status and configuration")
-                    sys.stdout.flush()
-                    anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip,  verbose=args.verbose)
+                    anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == 'blockchain':
-                    print("Testing related to blockchain policy params and relationships")
-                    sys.stdout.flush()
-                    blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
+                    blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "sql":
-                    print("Testing related to (basic) data queries")
-                    sys.stdout.flush()
-                    sql_test(query_conn=args.query, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
+                    sql_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+        else:
+            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+
+
 
 
 
