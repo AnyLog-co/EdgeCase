@@ -109,15 +109,11 @@ def blockchain_test(query_conn:str, is_standalone:bool=False, test_name:str=None
     runner = unittest.TextTestRunner(verbosity=verbose)
     result = runner.run(suite)
 
-
-
-
-
 def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
     TestSQLCommands.conn = query_conn
     TestSQLCommands.db_name = db_name
 
-    if ignore_skip:
+    if ignore_skip and not test_name:
         _remove_skip_decorators(TestSQLCommands)
 
     suite = unittest.TestLoader().loadTestsFromTestCase(TestSQLCommands)
@@ -161,6 +157,7 @@ def null_data_test(query_conn:str, operator_conn:str, db_name:str, test_name:str
     runner = unittest.TextTestRunner(verbosity=verbose)
     result = runner.run(suite)
 
+
 def main():
     """
     :required options:
@@ -193,6 +190,9 @@ def main():
     args.operator = args.operator.split(",")
     # insert data
     if not args.skip_insert:
+        print("Inserting Data")
+        sys.stdout.flush()
+        time.sleep(0.5)
         insert_data(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
         flush_buffer(conn=args.operator)
 

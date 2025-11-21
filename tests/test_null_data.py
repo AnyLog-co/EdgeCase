@@ -1,5 +1,4 @@
 import json
-import time
 import unittest
 import source.rest_call as rest_call
 from contextlib import contextmanager
