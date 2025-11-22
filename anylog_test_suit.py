@@ -8,7 +8,7 @@ from tests.test_sql_queries import TestSQLCommands
 from tests.test_anylog_cli import TestAnyLogCommands
 from tests.test_blockchain_policies import TestBlockchainPolicies
 from tests.test_null_data import TestNullData
-from source.rest_call import flush_buffer
+from source.rest_call import flush_buffer, get_data
 
 def _list_methods(cls_name):
     list_methods = []
@@ -76,6 +76,25 @@ def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbo
 
     sys.stdout.flush()
     time.sleep(0.5)
+
+"""
+Validate data has been insereted properly into database(s), if fails cannot continue with testing
+"""
+def _validate_row_count(query_conn:str, db_name:str):
+    query = f"sql {db_name} format=json and stat=false and include=(power_plant, power_plant_pv) SELECT count(*) AS row_count FROM rand_data"
+    is_ready = False
+    index = 0
+
+    while is_ready is False and index < 3:
+        result = get_data(conn=query_conn, query=query)
+        data = result.json().get('Query')[0]
+        if data.get('row_count') == 3100:
+            is_ready = True
+        else:
+            time.sleep(30)
+            index += 1
+    return is_ready
+
 
 
 
@@ -158,8 +177,14 @@ def main():
         print("Inserting Data")
         sys.stdout.flush()
         time.sleep(0.5)
-        insert_data(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
+        insert_data(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps, batch=args.batch)
         flush_buffer(conn=args.operator)
+
+    is_ready = _validate_row_count(query_conn=args.query, db_name=args.db_name)
+    if not is_ready:
+        print(f"Issue with loaded data, cannot gurantee consistent results for testing, thus exiting")
+        exit(1)
+
 
     # run query test
     if not args.skip_test:
