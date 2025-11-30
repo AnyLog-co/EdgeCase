@@ -162,7 +162,7 @@ class TestAnyLogCommands(unittest.TestCase):
         if not self.operator and not self.query:
             self.skipTest("Mising connection information for operator and query")
         elif not self.query and self.operator:
-            if isinstance(self.operator, list):
+            if isinstance(self.operator, list): 
                 conn = random.chocie(self.operator)
             else:
                 conn = self.operator

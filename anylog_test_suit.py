@@ -9,6 +9,9 @@ from tests.test_anylog_cli import TestAnyLogCommands
 from tests.test_blockchain_policies import TestBlockchainPolicies
 from tests.test_null_data import TestNullData
 from source.rest_call import flush_buffer, get_data
+from source.colorized_test import ColorizedResult, SilentRunner
+
+
 
 def _list_methods(cls_name):
     list_methods = []
@@ -71,7 +74,7 @@ def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbo
         if test._testMethodName in wanted
     )
 
-    runner = unittest.TextTestRunner(verbosity=verbose)
+    runner =  SilentRunner(verbosity=verbose)
     runner.run(suite)
 
     sys.stdout.flush()
