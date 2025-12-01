@@ -74,14 +74,18 @@ def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbo
         if test._testMethodName in wanted
     )
 
-    runner =  SilentRunner(verbosity=verbose)
-    runner.run(suite)
+    if not test_name:
+        runner =  SilentRunner(verbosity=verbose)
+        runner.run(suite)
+    else:
+        runner = unittest.TextTestRunner(verbosity=verbose)
+        runner.run(suite)
 
     sys.stdout.flush()
     time.sleep(0.5)
 
 """
-Validate data has been insereted properly into database(s), if fails cannot continue with testing
+Validate data has been inserted properly into database(s), if fails cannot continue with testing
 """
 def _validate_row_count(query_conn:str, db_name:str):
     query = f"sql {db_name} format=json and stat=false and include=(power_plant, power_plant_pv) SELECT count(*) AS row_count FROM rand_data"
