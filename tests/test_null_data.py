@@ -1,47 +1,18 @@
-import json
 import unittest
 import source.rest_call as rest_call
 from contextlib import contextmanager
-
-DATA = [
-    # full data
-    {"timestamp": "2025-11-16 12:20:43.058968", "acct": "Mike",  "value1": 3,  "value2":3},
-    {"timestamp": "2025-11-16 12:22:43.058968", "acct": "Bruce", "value1": 4,  "value2": 7},
-    # missing value2
-    {"timestamp": "2025-11-16 12:24:43.058968", "acct": "Kyle",  "value1": 6},
-    # missing user
-    {"timestamp": "2025-11-16 12:26:43.058968",                  "value1": 8,  "value2": 5},
-    # missing timestamp
-    {                                           "acct": "Don",  "value1": 3,  "value2":3}, # fails to insert when timestamp is NULL
-]
-
-
-def insert_data(conn:str, db_name:str):
-    for row in DATA:
-        rest_call.put_data(conn=conn, payload=json.dumps(row), dbms=db_name, table="t1")
-        if DATA.index(row) == 1:
-            rest_call.flush_buffer(conn=conn)
-    rest_call.flush_buffer(conn=conn)
-
 
 
 class TestNullData(unittest.TestCase):
     # Class variables to be set before running tests
     query = None
-    operator = None
     db_name = None
-    skip_insert = None
 
     @classmethod
     def setUpClass(self):
         # Ensure required parameters are set
         assert self.query
-        assert self.operator
         assert self.db_name
-        assert self.skip_insert in [True, False]
-
-        if not self.skip_insert:
-            insert_data(conn=self.operator, db_name=self.db_name)
 
     @contextmanager
     def query_context(self, query:str):
@@ -60,7 +31,7 @@ class TestNullData(unittest.TestCase):
             self.assertIn('Query', data)
             content = data.get('Query')
             self.assertIn("row_count", content[0])
-            self.assertEqual(content[0].get("row_count"), len(DATA))
+            self.assertEqual(content[0].get("row_count"), 5)
 
     def test_raw_data(self):
         expected = [
@@ -107,46 +78,58 @@ class TestNullData(unittest.TestCase):
             self.assertEqual(content[0], expected)
 
     def test_name_where(self):
-        self.skipTest("Not supported AnyLog function `is`")
-        query = f'sql {self.db_name} format=json and status=false select user, value1, value2 FROM t1 where user IS NULL'
+        # self.skipTest("Not supported AnyLog function `is`")
+        query = f'sql {self.db_name} format=json and stat=false select acct, value1, value2 FROM t1 where acct IS NULL'
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
         data = response.json()
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
-            print(content)
+            self.assertEqual(content, [{'acct': None, 'value1': 8, 'value2': 5}])
 
-        query = f'sql {self.db_name} format=json and status=false select user, value1, value2 FROM t1 where user IS NOT NULL'
+        query = f'sql {self.db_name} format=json and stat=false select acct, value1, value2 FROM t1 where acct IS NOT NULL'
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
         data = response.json()
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
-            print(content)
+            self.assertEqual(content, [
+                {'acct': 'Mike', 'value1': 3, 'value2': 3},
+                {'acct': 'Bruce', 'value1': 4, 'value2': 7},
+                {'acct': 'Kyle', 'value1': 6, 'value2': None},
+                {'acct': 'Don', 'value1': 3, 'value2': 3}
+            ])
 
     def test_value_where(self):
-        self.skipTest("Not supported AnyLog function `is`")
-        query = f'sql {self.db_name} format=json and status=false select user, value1, value2 FROM t1 where value2 IS NULL'
+        # self.skipTest("Not supported AnyLog function `is`")
+        query = f'sql {self.db_name} format=json and stat=false select acct, value1, value2 FROM t1 where value2 IS NULL'
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
         data = response.json()
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
-            print(content)
+            self.assertEqual(content, [{'acct': 'Kyle', 'value1': 6, 'value2': None}])
 
-        query = f'sql {self.db_name} format=json and status=false select user, value1, value2 FROM t1 where value2 IS NOT NULL'
+        query = f'sql {self.db_name} format=json and stat=false select acct, value1, value2 FROM t1 where value2 IS NOT NULL'
         response = rest_call.get_data(conn=self.query, query=query, destination="network")
         data = response.json()
         with self.query_context(query):
             self.assertIn('Query', data)
             content = data.get('Query')
-            print(content)
+            self.assertEqual(content, [
+                {'acct': 'Mike', 'value1': 3, 'value2': 3},
+                {'acct': 'Bruce', 'value1': 4, 'value2': 7},
+                {'acct': None, 'value1': 8, 'value2': 5},
+                {'acct': 'Don', 'value1': 3, 'value2': 3}]
+            )
 
 if __name__ == '__main__':
+    # insert_data(conn='10.0.0.169:32149', db_name='new_company')
     # Set class variables dynamically
-    TestInserts.query = '172.23.160.85:32149'
-    TestInserts.operator = '172.23.160.85:32149'
-    TestInserts.db_name = 'new_company'
+    TestNullData.query = '10.0.0.169:32149'
+    TestNullData.operator = '10.0.0.169:32149'
+    TestNullData.db_name = 'new_company'
+    TestNullData.skip_insert = True
 
     # Use verbosity=2 for more detailed output
     unittest.main(verbosity=2)

@@ -3,13 +3,15 @@ import time
 import unittest
 import sys
 
-from source.insert_data import insert_data
+from source.insert_data_files import insert_data as insert_data_files
+from source.insert_data_null import insert_data as insert_data_null
+from source.rest_call import flush_buffer, get_data
+from source.colorized_test import SilentRunner
+
 from tests.test_sql_queries import TestSQLCommands
 from tests.test_anylog_cli import TestAnyLogCommands
 from tests.test_blockchain_policies import TestBlockchainPolicies
 from tests.test_null_data import TestNullData
-from source.rest_call import flush_buffer, get_data
-from source.colorized_test import ColorizedResult, SilentRunner
 
 
 
@@ -88,14 +90,14 @@ def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbo
 Validate data has been inserted properly into database(s), if fails cannot continue with testing
 """
 def _validate_row_count(query_conn:str, db_name:str):
-    query = f"sql {db_name} format=json and stat=false and include=(power_plant, power_plant_pv) SELECT count(*) AS row_count FROM rand_data"
+    query = f"sql {db_name} format=json and stat=false and include=(power_plant, power_plant_pv, t1) SELECT count(*) AS row_count FROM rand_data"
     is_ready = False
     index = 0
 
     while is_ready is False and index < 3:
         result = get_data(conn=query_conn, query=query)
         data = result.json().get('Query')[0]
-        if data.get('row_count') == 3100:
+        if data.get('row_count') == 3105:
             is_ready = True
         else:
             time.sleep(30)
@@ -140,11 +142,13 @@ def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=F
     _run_test(test_class_name=TestSQLCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 
-def null_data_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, skip_insert:bool=False, ignore_skip:bool=False, verbose:int=2):
+def null_data_test(query_conn:str, db_name:str, test_name:str, skip_insert:bool=False, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to Null or Empty data")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestNullData.query = query_conn
-    TestNullData.operator = operator_conn
     TestNullData.db_name = db_name
-    TestNullData.skip_insert = skip_insert
 
     _run_test(test_class_name=TestNullData, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
@@ -185,10 +189,13 @@ def main():
         print("Inserting Data")
         sys.stdout.flush()
         time.sleep(0.5)
-        insert_data(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps, batch=args.batch)
+        insert_data_files(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps, batch=args.batch)
         flush_buffer(conn=args.operator)
+        insert_data_null(conns=args.operator, db_name=args.db_name)
 
-    print("Validate Data has been Insereted")
+
+
+    print("Validate Data has been Inserted")
     sys.stdout.flush()
     time.sleep(0.5)
     is_ready = _validate_row_count(query_conn=args.query, db_name=args.db_name)
@@ -221,10 +228,13 @@ def main():
                     blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "sql":
                     sql_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+                elif test_case == 'null':
+                    null_data_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
         else:
             anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
             blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
             sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            null_data_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
 
 
 

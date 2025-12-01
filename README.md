@@ -75,7 +75,7 @@ The test does the following steps:
 ## Updating Code
 
 ### Adding New Data 
-Add JSON file(s) to [data](data) directory - [insert_data.py](source/insert_data.py) will automatically grab the JSON file(s) 
+Add JSON file(s) to [data](data) directory - [insert_data.py](source/insert_data_files.py) will automatically grab the JSON file(s) 
 and publish them to the operator node(s).
 
 ### New Test Cases

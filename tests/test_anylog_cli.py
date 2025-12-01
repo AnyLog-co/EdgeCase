@@ -136,6 +136,8 @@ class TestAnyLogCommands(unittest.TestCase):
     For rand_data, power_plant, power_plant_pv validate column types 
     """
     def test_check_tables(self):
+        regression_testing_tables = ["t1", "power_plant", "power_plant_pv", "rand_data"]
+        tables_count = 0
         if not self.operator and not self.query:
             self.skipTest("Mising connection information for operator and query")
         elif not self.query and self.operator:
@@ -152,17 +154,23 @@ class TestAnyLogCommands(unittest.TestCase):
         with self.query_context(command):
             self.assertGreater(len(data), 0)
             for row in data:
-                self.assertIn('DBMS', row)
-                self.assertIn('Table', row)
-                self.assertEqual(row.get('DBMS'), self.db_name)
-                assert row.get('Table') in ['rand_data', 'power_plant', 'power_plant_pv']
+                db_name = row.get("DBMS")
+                table_name = row.get("Table")
+                if db_name == self.db_name and table_name in regression_testing_tables:
+                    tables_count += 1
+            self.assertEqual(tables_count, len(regression_testing_tables))
+
+                # self.assertIn('DBMS', row)
+                # self.assertIn('Table', row)
+                # self.assertEqual(row.get('DBMS'), self.db_name)
+                # assert row.get('Table') in ['rand_data', 'power_plant', 'power_plant_pv', 'test_check_tables']
 
     # @unittest.skip(reason="data type inconsistent due to partitioning")
     def test_table_columns(self):
         if not self.operator and not self.query:
             self.skipTest("Mising connection information for operator and query")
         elif not self.query and self.operator:
-            if isinstance(self.operator, list): 
+            if isinstance(self.operator, list):
                 conn = random.chocie(self.operator)
             else:
                 conn = self.operator
