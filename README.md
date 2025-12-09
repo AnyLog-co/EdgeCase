@@ -43,9 +43,11 @@ options:
                         (comma separated) specific test(s) to run
 
 List of Tests
-  - anylog:  test_check_tables, test_get_status, test_operator_databases, test_operator_processes, test_query_processes, test_system_query_database, test_table_columns  
-  - sql:     test_aggregations, test_aggregations_group_by, test_increments, test_increments_group_by, test_period, test_period_and, test_period_complex, test_row_count_complete, test_row_count_per_table_complete, test_small_increments
-
+  - anylog:      test_check_tables, test_get_status, test_operator_databases, test_operator_processes, test_query_processes, test_system_query_database, test_table_columns
+  - blockchain:  test_child_clusters, test_operator_clusters, test_policy_count, test_policy_format, test_table_cluster_count
+  - sql:         test_aggregations, test_aggregations_group_by, test_avg_count_sum, test_increments, test_increments_group_by, test_period, test_period_and, test_period_complex, test_row_count_complete, test_row_count_per_table_complete
+  - timestamp:   test_basic_timestamp, test_format_timezones, test_sql_format, test_sql_timezone, test_sql_tz_format
+  - null_data:   test_avg_values, test_name_where, test_raw_data, test_row_count, test_value_where, test_values_count
 ```
 
 The test does the following steps: 
@@ -75,7 +77,7 @@ The test does the following steps:
 ## Updating Code
 
 ### Adding New Data 
-Add JSON file(s) to [data](data) directory - [insert_data.py](source/insert_data.py) will automatically grab the JSON file(s) 
+Add JSON file(s) to [data](data) directory - [insert_data.py](source/insert_data_files.py) will automatically grab the JSON file(s) 
 and publish them to the operator node(s).
 
 ### New Test Cases

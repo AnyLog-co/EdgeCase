@@ -50,9 +50,7 @@ class TestBlockchainPolicies(unittest.TestCase):
     Logic to check that each table policy has an associated cluster and clusters with defined table(s) has an
     associated policy
     """
-
     def test_table_cluster_count(self):
-
         conn = self.query
 
         command = "blockchain get cluster"

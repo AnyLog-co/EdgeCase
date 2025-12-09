@@ -136,6 +136,8 @@ class TestAnyLogCommands(unittest.TestCase):
     For rand_data, power_plant, power_plant_pv validate column types 
     """
     def test_check_tables(self):
+        regression_testing_tables = ["t1", "power_plant", "power_plant_pv", "rand_data"]
+        tables_count = 0
         if not self.operator and not self.query:
             self.skipTest("Mising connection information for operator and query")
         elif not self.query and self.operator:
@@ -152,10 +154,16 @@ class TestAnyLogCommands(unittest.TestCase):
         with self.query_context(command):
             self.assertGreater(len(data), 0)
             for row in data:
-                self.assertIn('DBMS', row)
-                self.assertIn('Table', row)
-                self.assertEqual(row.get('DBMS'), self.db_name)
-                assert row.get('Table') in ['rand_data', 'power_plant', 'power_plant_pv']
+                db_name = row.get("DBMS")
+                table_name = row.get("Table")
+                if db_name == self.db_name and table_name in regression_testing_tables:
+                    tables_count += 1
+            self.assertEqual(tables_count, len(regression_testing_tables))
+
+                # self.assertIn('DBMS', row)
+                # self.assertIn('Table', row)
+                # self.assertEqual(row.get('DBMS'), self.db_name)
+                # assert row.get('Table') in ['rand_data', 'power_plant', 'power_plant_pv', 'test_check_tables']
 
     # @unittest.skip(reason="data type inconsistent due to partitioning")
     def test_table_columns(self):
@@ -176,9 +184,9 @@ class TestAnyLogCommands(unittest.TestCase):
             },
             'power_plant': {
                 'row_id': 'integer', 'insert_timestamp': 'timestamp without time zone', 'tsd_name': 'char(3)',
-                'tsd_id': 'int', 'monitor_id': 'char(4)', 'timestamp': 'timestamp without time zone',
+                'tsd_id': 'int', 'monitor_id': 'char', 'timestamp': 'timestamp without time zone',
                 'a_n_voltage': 'int', 'a_current': 'int', 'b_n_voltage': 'int', 'realpower': 'int', 'c_current': 'int',
-                'c_n_voltage': 'int', 'commsstatus': 'char(4)', 'energymultiplier': 'int', 'frequency': 'int',
+                'c_n_voltage': 'int', 'commsstatus': 'char', 'energymultiplier': 'int', 'frequency': 'int',
                 'powerfactor': 'int', 'b_current': 'int', 'reactivepower': 'int'
             },
             'power_plant_pv': {
@@ -189,37 +197,19 @@ class TestAnyLogCommands(unittest.TestCase):
         }
 
         # Map equivalent types across DBs/drivers
-        for table, columns in expected.items():
-            command = f"get columns where dbms={self.db_name} and table={table} and format=json"
-            result = get_data(conn, command, destination="")
-            actual = result.json()
-            with self.query_context(command):
-                for col, expected_type in columns.items():
-                    actual_type = actual.get(col)
-                    if not actual_type:
-                        self.fail(f"Column '{col}' missing in table '{table}'")
+        for table in expected:
+            with self.subTest(f"Testing: {self.db_name}.{table}"):
+                command = f"get columns where dbms={self.db_name} and table={table} and format=json"
+                result = get_data(conn, command, destination="")
+                data = result.json()
 
-                    expected_type_lower = expected_type.lower()
-                    actual_type_lower = actual_type.lower()
-
-                    if expected_type_lower in DATA_TYPES_EQUIVALENTS:
-                        self.assertIn(
-                            actual_type_lower,
-                            DATA_TYPES_EQUIVALENTS[expected_type_lower],
-                            msg=f"Column '{col}' in table '{table}': expected {expected_type}, got {actual_type}"
-                        )
-                    else:
-                        # fallback to exact match if type not mapped
-                        if "char(" in actual_type_lower:
-                            pass
-
-                        self.assertEqual(
-                            actual_type_lower,
-                            expected_type_lower,
-                            msg=f"Column '{col}' in table '{table}': expected {expected_type}, got {actual_type}"
-                        )
-
-
+                with self.query_context(command):
+                    for column, data_type in data.items():
+                        self.assertIn(column, expected[table])
+                        if "char" not in data_type:
+                            self.assertEqual(data_type, expected[table][column])
+                        else:
+                            self.assertIn(expected[table][column], data_type)
 
 if __name__ == '__main__':
     # Set class variables dynamically

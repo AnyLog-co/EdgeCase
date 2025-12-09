@@ -13,7 +13,7 @@ def execute_request(func:str, conn:str, headers:dict, payload:str=None):
             raise ValueError(f'Invalid user input {func.upper()}')
         response.raise_for_status()
     except Exception as error:
-        raise Exception(f"Failed to execute {func.upper()} against {conn} (Error;  {error})")
+        raise Exception(f"Failed to execute {func.upper()} against {conn} (Error:  {error})")
     return response
 
 

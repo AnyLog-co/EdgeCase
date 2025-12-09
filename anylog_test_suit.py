@@ -3,12 +3,19 @@ import time
 import unittest
 import sys
 
-from source.insert_data import insert_data
+from source.insert_data_files import insert_data as insert_data_files
+from source.insert_data_null import insert_data as insert_data_null
+from source.rest_call import flush_buffer, get_data
+from source.colorized_test import SilentRunner
+
 from tests.test_sql_queries import TestSQLCommands
+from tests.test_timestamp_queries import TestTimestampCommands
 from tests.test_anylog_cli import TestAnyLogCommands
 from tests.test_blockchain_policies import TestBlockchainPolicies
 from tests.test_null_data import TestNullData
-from source.rest_call import flush_buffer
+
+
+
 
 def _list_methods(cls_name):
     list_methods = []
@@ -22,6 +29,7 @@ def _print_test_cases():
         'anylog':     _list_methods(TestAnyLogCommands),
         'blockchain': _list_methods(TestBlockchainPolicies),
         'sql':        _list_methods(TestSQLCommands),
+        'timestamp': _list_methods(TestTimestampCommands),
         'null_data': _list_methods(TestNullData)
     }
 
@@ -54,109 +62,109 @@ def _remove_skip_decorators(testcase_cls):
     testcase_cls.__init__ = new_init
 
 
+def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+
+    if ignore_skip or test_name:
+        _remove_skip_decorators(test_class_name)
+
+    loader = unittest.TestLoader()
+    suite_all = loader.loadTestsFromTestCase(test_class_name)
+
+    wanted = {test._testMethodName for test in suite_all}
+    if test_name:
+        wanted = {test for  test in test_name}
+
+    suite = unittest.TestSuite(
+        test for test in suite_all
+        if test._testMethodName in wanted
+    )
+
+    if not test_name:
+        runner =  SilentRunner(verbosity=verbose)
+        runner.run(suite)
+    else:
+        runner = unittest.TextTestRunner(verbosity=verbose)
+        runner.run(suite)
+
+    sys.stdout.flush()
+    time.sleep(0.5)
+
+"""
+Validate data has been inserted properly into database(s), if fails cannot continue with testing
+"""
+def _validate_row_count(query_conn:str, db_name:str):
+    query = f"sql {db_name} format=json and stat=false and include=(power_plant, power_plant_pv, t1) SELECT count(*) AS row_count FROM rand_data"
+    is_ready = False
+    index = 0
+
+    while is_ready is False and index < 3:
+        result = get_data(conn=query_conn, query=query)
+        data = result.json().get('Query')[0]
+        if data.get('row_count') == 3105:
+            is_ready = True
+        else:
+            time.sleep(30)
+            index += 1
+
+    return is_ready
+
+
+
+
 def anylog_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to Node status and configuration")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestAnyLogCommands.query = query_conn
     TestAnyLogCommands.operator = operator_conn
     TestAnyLogCommands.db_name = db_name
 
-    if ignore_skip:
-        _remove_skip_decorators(TestAnyLogCommands)
-
-    loader = unittest.TestLoader()
-    suite_all = loader.loadTestsFromTestCase(TestAnyLogCommands)
-
-    # Determine which tests to run
-    if not test_name:
-        wanted = {test._testMethodName for test in suite_all}
-    else:
-        wanted = {name.strip() for name in test_name.split(",")}
-
-    # Filter suite while keeping decorators like @skip
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
-
-    # if not result.wasSuccessful():
-    #     sys.exit(1)
+    _run_test(test_class_name=TestAnyLogCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 
 def blockchain_test(query_conn:str, is_standalone:bool=False, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to blockchain policy params and relationships")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestBlockchainPolicies.query = query_conn
     TestBlockchainPolicies.is_standalone = is_standalone
 
-    if ignore_skip:
-        _remove_skip_decorators(TestBlockchainPolicies)
+    _run_test(test_class_name=TestBlockchainPolicies, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
-    loader = unittest.TestLoader()
-    suite_all = loader.loadTestsFromTestCase(TestBlockchainPolicies)
-
-    # Determine which tests to run
-    if not test_name:
-        wanted = {test._testMethodName for test in suite_all}
-    else:
-        wanted = {name.strip() for name in test_name.split(",")}
-
-    # Filter suite while keeping decorators like @skip
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
 
 def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to (basic) data queries")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestSQLCommands.conn = query_conn
     TestSQLCommands.db_name = db_name
 
-    if ignore_skip and not test_name:
-        _remove_skip_decorators(TestSQLCommands)
-
-    suite = unittest.TestLoader().loadTestsFromTestCase(TestSQLCommands)
-    test_cases =  {test._testMethodName for test in suite} if not test_name else test_name
+    _run_test(test_class_name=TestSQLCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 
-    if not ignore_skip and not isinstance(test_cases, str):
-        suite = unittest.TestSuite(test for test in suite if test._testMethodName in test_cases)
-    elif not ignore_skip:
-        suite = unittest.TestSuite(test_cases)
+def timestamp_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to timestamp / timezone formatting queries")
+    sys.stdout.flush()
+    time.sleep(0.5)
 
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
-    # if not result.wasSuccessful():
-    #     sys.exit(1)
+    TestTimestampCommands.conn = query_conn
+    TestTimestampCommands.db_name = db_name
 
-def null_data_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, skip_insert:bool=False, ignore_skip:bool=False, verbose:int=2):
+    _run_test(test_class_name=TestTimestampCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
+
+
+def null_data_test(query_conn:str, db_name:str, test_name:str, skip_insert:bool=False, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to Null or Empty data")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
     TestNullData.query = query_conn
-    TestNullData.operator = operator_conn
     TestNullData.db_name = db_name
-    TestNullData.skip_insert = skip_insert
 
-    if ignore_skip:
-        _remove_skip_decorators(TestNullData)
-
-    loader = unittest.TestLoader()
-    suite_all = loader.loadTestsFromTestCase(TestNullData)
-
-    # Determine which tests to run
-    if not test_name:
-        wanted = {test._testMethodName for test in suite_all}
-    else:
-        wanted = {name.strip() for name in test_name.split(",")}
-
-    # Filter suite while keeping decorators like @skip
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
-
-    runner = unittest.TextTestRunner(verbosity=verbose)
-    result = runner.run(suite)
-
+    _run_test(test_class_name=TestNullData, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 def main():
     """
@@ -188,53 +196,65 @@ def main():
     args = parse.parse_args()
 
     args.operator = args.operator.split(",")
+
+
     # insert data
     if not args.skip_insert:
         print("Inserting Data")
         sys.stdout.flush()
         time.sleep(0.5)
-        insert_data(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps)
+        insert_data_files(conns=args.operator, db_name=args.db_name, sort_timestamps=args.sort_timestamps, batch=args.batch)
         flush_buffer(conn=args.operator)
+        insert_data_null(conns=args.operator, db_name=args.db_name)
+
+
+
+    print("Validate Data has been Inserted")
+    sys.stdout.flush()
+    time.sleep(0.5)
+    is_ready = _validate_row_count(query_conn=args.query, db_name=args.db_name)
+    if not is_ready:
+        print(f"Issue with loaded data, cannot gurantee consistent results for testing, thus exiting")
+        exit(1)
+
 
     # run query test
     if not args.skip_test:
-        # run tests:
-        if not args.select_test:
-            print("Testing related to Node status and configuration")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
-            print("Testing related to blockchain policy params and relationships")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
-            print("Testing related to (basic) data queries")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
-            print("Testing Null or empty column values in data")
-            sys.stdout.flush()
-            time.sleep(0.5)
-            # null_data_test()
-
-        else:
+        selected_tests = {}
+        if args.select_test:
             for test_case in args.select_test.strip().split(","):
                 test_name = None
                 if '.' in test_case:
                     test_case, test_name = test_case.split(".")
 
+                if test_case not in selected_tests:
+                    selected_tests[test_case] = []
+                if test_name:
+                    selected_tests[test_case].append(test_name.strip())
+
+            # for test_case in selected_tests:
+            #     selected_tests[test_case] = dict(selected_tests[test_case])
+
+            for test_case in selected_tests:
                 if test_case == 'anylog':
-                    print("Testing related to Node status and configuration")
-                    sys.stdout.flush()
-                    anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip,  verbose=args.verbose)
+                    anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == 'blockchain':
-                    print("Testing related to blockchain policy params and relationships")
-                    sys.stdout.flush()
-                    blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
+                    blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "sql":
-                    print("Testing related to (basic) data queries")
-                    sys.stdout.flush()
-                    sql_test(query_conn=args.query, db_name=args.db_name, test_name=test_name, ignore_skip=args.ignore_skip, verbose=args.verbose)
+                    sql_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+                if test_case == "timestamp":
+                    timestamp_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+                elif test_case == 'null':
+                    null_data_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+
+        else:
+            anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            timestamp_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            null_data_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+
+
 
 
 
