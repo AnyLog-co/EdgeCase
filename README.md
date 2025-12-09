@@ -1,8 +1,11 @@
-# AnyLog Unit Testing 
+# EdgeCase
 
-The following provides a platform to easy add and execute testing against AnyLog / EdgeLake. 
+The following provides a platform to easily add and execute testing against AnyLog / EdgeLake. 
 
-The goal is whenever we encounter a bug, we add more data and test cases to be executed.
+The tool is intended to validate that changes to the code do not break the existing behavior of the 
+data - ie regression testing). With the hope that as more functionality is added, and issues are found / fixed new tests
+would be integrated. 
+
 
 **Directory Structure**: 
 ```tree
@@ -50,28 +53,6 @@ List of Tests
   - null_data:   test_avg_values, test_name_where, test_raw_data, test_row_count, test_value_where, test_values_count
 ```
 
-The test does the following steps: 
-1. Insert data 
-2. [test_anylog_cli.py](tests/test_anylog_cli.py)   - execute basic `get` commands that validate connectivity, configurations and that the data exists 
-3. [test_sql_queries.py](tests/test_sql_queries.py) - execute an array of common `SELECT` statements - expected results were do against a table without partitioning
-   * aggregations
-   * increments 
-   * group by 
-   * where 
-   * period 
-   * raw data
-
-**Missing**: 
-1. automatically deploying a small network  
-   * 1 docker container that has everything 
-   * Master, operator, query 
-   * Master, 2 operator, query
-   * Master, 2 operator (HA), query
-   * Master, 3 operators (2 HA), query 
-2. Insert data using POST or MQTT 
-3. Remove data and associated blockchain policies from network 
-4. teardown the entire network (used for overnight / testing) if everything passed 
-5. store summary to file(s)
 
 
 ## Updating Code
