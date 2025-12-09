@@ -151,27 +151,6 @@ class TestSQLCommands(unittest.TestCase):
     """
     increment testing
     """
-    def test_small_increments(self):
-        query = f"sql {self.db_name} format=table and stat=false and timezone=utc SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data WHERE timestamp >= '2024-12-20 00:00:00' AND timestamp <= '2025-01-10 23:59:59' ORDER BY min_ts DESC"
-        for increment in ['second, 1', 'second, 30', 'minute, 1', 'minute, 5', 'minute, 15', 'minute, 30',
-                          'hour, 1', 'hour, 6', 'hour, 12', 'hour, 24']:
-
-            fname = f"small_increments_{increment.strip().replace(' ', '').replace(',', '_')}.out"
-
-            results_file = os.path.join(self.actual_dir, fname)
-            expect_file = os.path.join(self.expect_dir, fname)
-
-            results = get_data(self.conn, query % increment)
-            data = results.text
-
-            support.write_file(results_file, data)
-            support.copy_file(results_file, expect_file)
-            actual_content = support.read_file(results_file)
-            expect_content = support.read_file(expect_file)
-
-            with self.query_context(query % increment):
-                self.assertEqual(actual_content, expect_content)
-
     def test_increments(self):
         query = f'sql {self.db_name} format=table and stat=false and timezone=utc "SELECT increments(%s, timestamp), min(timestamp)::ljust(19) as min_ts, max(timestamp)::ljust(19) as max_ts, min(value) as min_val, avg(value)::float(3) as avg_val, max(value) as max_val FROM rand_data ORDER BY min_ts, max_ts ASC;"'
         for increment in ['day, 1', 'day, 7', 'day, 30', 'day, 90', 'day, 180', 'day, 365', 'year, 1']:
@@ -267,7 +246,43 @@ class TestSQLCommands(unittest.TestCase):
             with self.query_context(query):
                 self.assertEqual(actual_content, expect_content)
 
+    def test_avg_count_sum(self):
+        expected = [
+            {'timestamp': '2023-07-01T11:00:36.000000Z', 'avg(value)': 270.22833333333335, 'count(value)': 3, 'sum(value)': 810.6850000000001},
+            {'timestamp': '2023-07-02T10:19:48.000000Z', 'avg(value)': 173.5025, 'count(value)': 2, 'sum(value)': 347.005},
+            {'timestamp': '2023-07-03T03:49:12.000000Z', 'avg(value)': 567.9565, 'count(value)': 2, 'sum(value)': 1135.913},
+            {'timestamp': '2023-07-05T14:07:12.000000Z', 'avg(value)': 45.461, 'count(value)': 1, 'sum(value)': 45.461},
+            {'timestamp': '2023-07-07T01:06:00.000000Z', 'avg(value)': 314.47125, 'count(value)': 4, 'sum(value)': 1257.885},
+            {'timestamp': '2023-07-08T17:54:36.000000Z', 'avg(value)': 100.63900000000001, 'count(value)': 2, 'sum(value)': 201.27800000000002},
+            {'timestamp': '2023-07-09T05:34:12.000000Z', 'avg(value)': 277.2626, 'count(value)': 5, 'sum(value)': 1386.313},
+            {'timestamp': '2023-07-10T22:22:48.000000Z', 'avg(value)': 74.854, 'count(value)': 1, 'sum(value)': 74.854},
+            {'timestamp': '2023-07-11T15:52:12.000000Z', 'avg(value)': 354.21625, 'count(value)': 4, 'sum(value)': 1416.865},
+            {'timestamp': '2023-07-12T09:21:36.000000Z', 'avg(value)': 656.381, 'count(value)': 1, 'sum(value)': 656.381},
+            {'timestamp': '2023-07-13T14:30:36.000000Z', 'avg(value)': 468.617, 'count(value)': 1, 'sum(value)': 468.617},
+            {'timestamp': '2023-07-14T02:10:12.000000Z', 'avg(value)': 38.872, 'count(value)': 1, 'sum(value)': 38.872},
+            {'timestamp': '2023-07-15T13:09:00.000000Z', 'avg(value)': 227.549, 'count(value)': 3, 'sum(value)': 682.647},
+            {'timestamp': '2023-07-16T18:18:00.000000Z', 'avg(value)': 391.14099999999996, 'count(value)': 2, 'sum(value)': 782.2819999999999},
+            {'timestamp': '2023-07-17T11:47:24.000000Z', 'avg(value)': 40.510999999999996, 'count(value)': 2, 'sum(value)': 81.02199999999999},
+            {'timestamp': '2023-07-18T16:56:24.000000Z', 'avg(value)': 257.101, 'count(value)': 2, 'sum(value)': 514.202},
+            {'timestamp': '2023-07-19T04:36:00.000000Z', 'avg(value)': 265.8005, 'count(value)': 2, 'sum(value)': 531.601},
+            {'timestamp': '2023-07-20T03:55:12.000000Z', 'avg(value)': 367.16175, 'count(value)': 4, 'sum(value)': 1468.647},
+            {'timestamp': '2023-07-21T09:04:12.000000Z', 'avg(value)': 401.512, 'count(value)': 2, 'sum(value)': 803.024},
+            {'timestamp': '2023-07-22T08:23:24.000000Z', 'avg(value)': 530.616, 'count(value)': 1, 'sum(value)': 530.616},
+            {'timestamp': '2023-07-24T12:51:36.000000Z', 'avg(value)': 28.761, 'count(value)': 1, 'sum(value)': 28.761},
+            {'timestamp': '2023-07-25T23:50:24.000000Z', 'avg(value)': 14.524, 'count(value)': 1, 'sum(value)': 14.524},
+            {'timestamp': '2023-07-26T05:40:12.000000Z', 'avg(value)': 180.32766666666666, 'count(value)': 3, 'sum(value)': 540.983},
+            {'timestamp': '2023-07-27T04:59:24.000000Z', 'avg(value)': 260.6805, 'count(value)': 2, 'sum(value)': 521.361},
+            {'timestamp': '2023-07-28T10:08:24.000000Z', 'avg(value)': 21.758, 'count(value)': 2, 'sum(value)': 43.516},
+            {'timestamp': '2023-07-29T03:37:48.000000Z', 'avg(value)': 321.825, 'count(value)': 2, 'sum(value)': 643.65},
+            {'timestamp': '2023-07-31T02:16:12.000000Z', 'avg(value)': 550.304, 'count(value)': 1, 'sum(value)': 550.304}
+        ]
 
+        query  = "select increments(day, 1, timestamp), min(timestamp) as timestamp, avg(value), count(value), sum(value) from rand_data where timestamp  > '2023-06-30 23:59:59' and timestamp < '2023-08-01 00:00:00' order by timestamp"
+        command = f"sql {self.db_name} format=json and stat=false and timezone=utc {query}"
+        results = get_data(self.conn, command)
+        actual = results.json()['Query']
+        with self.query_context(command):
+            self.assertEqual(actual, expected)
 
 
 if __name__ == "__main__":

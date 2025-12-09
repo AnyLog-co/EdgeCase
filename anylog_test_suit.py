@@ -9,9 +9,11 @@ from source.rest_call import flush_buffer, get_data
 from source.colorized_test import SilentRunner
 
 from tests.test_sql_queries import TestSQLCommands
+from tests.test_timestamp_queries import TestTimestampCommands
 from tests.test_anylog_cli import TestAnyLogCommands
 from tests.test_blockchain_policies import TestBlockchainPolicies
 from tests.test_null_data import TestNullData
+
 
 
 
@@ -27,6 +29,7 @@ def _print_test_cases():
         'anylog':     _list_methods(TestAnyLogCommands),
         'blockchain': _list_methods(TestBlockchainPolicies),
         'sql':        _list_methods(TestSQLCommands),
+        'timestamp': _list_methods(TestTimestampCommands),
         'null_data': _list_methods(TestNullData)
     }
 
@@ -142,6 +145,17 @@ def sql_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=F
     _run_test(test_class_name=TestSQLCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
 
+def timestamp_test(query_conn:str, db_name:str, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+    print("Testing related to timestamp / timezone formatting queries")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
+    TestTimestampCommands.conn = query_conn
+    TestTimestampCommands.db_name = db_name
+
+    _run_test(test_class_name=TestTimestampCommands, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
+
+
 def null_data_test(query_conn:str, db_name:str, test_name:str, skip_insert:bool=False, ignore_skip:bool=False, verbose:int=2):
     print("Testing related to Null or Empty data")
     sys.stdout.flush()
@@ -228,12 +242,16 @@ def main():
                     blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "sql":
                     sql_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+                if test_case == "timestamp":
+                    timestamp_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 elif test_case == 'null':
                     null_data_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
+
         else:
             anylog_test(query_conn=args.query, operator_conn=args.operator, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
             blockchain_test(query_conn=args.query, is_standalone=args.is_standalone, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
             sql_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
+            timestamp_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
             null_data_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=args.ignore_skip, verbose=args.verbose)
 
 
