@@ -8,13 +8,12 @@ from source.insert_data_null import insert_data as insert_data_null
 from source.rest_call import flush_buffer, get_data
 from source.colorized_test import SilentRunner
 
+from tests.test_ready_to_go import TestQueryDataReady
 from tests.test_sql_queries import TestSQLCommands
 from tests.test_timestamp_queries import TestTimestampCommands
 from tests.test_anylog_cli import TestAnyLogCommands
 from tests.test_blockchain_policies import TestBlockchainPolicies
 from tests.test_null_data import TestNullData
-
-
 
 
 def _list_methods(cls_name):
@@ -62,7 +61,7 @@ def _remove_skip_decorators(testcase_cls):
     testcase_cls.__init__ = new_init
 
 
-def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbose:int=2):
+def _run_test(test_class_name, test_name: str = None, ignore_skip: bool = False, verbose: int = 2):
 
     if ignore_skip or test_name:
         _remove_skip_decorators(test_class_name)
@@ -70,46 +69,48 @@ def _run_test(test_class_name, test_name:str=None, ignore_skip:bool=False, verbo
     loader = unittest.TestLoader()
     suite_all = loader.loadTestsFromTestCase(test_class_name)
 
+    # Filter by requested tests
     wanted = {test._testMethodName for test in suite_all}
     if test_name:
-        wanted = {test for  test in test_name}
+        wanted = {name for name in test_name}
 
-    suite = unittest.TestSuite(
-        test for test in suite_all
-        if test._testMethodName in wanted
-    )
+    # Handle TestQueryDataReady → enforce order
+    if test_class_name.__name__ == 'TestQueryDataReady':
+        suite = unittest.TestSuite(
+            sorted(
+                suite_all,
+                key=lambda t: 0 if t._testMethodName == "test_system_query" else 1
+            )
+        )
+    else:
+        suite = unittest.TestSuite(
+            test for test in suite_all if test._testMethodName in wanted
+        )
 
+    # Run
     if not test_name:
-        runner =  SilentRunner(verbosity=verbose)
-        runner.run(suite)
+        runner = SilentRunner(verbosity=verbose)
     else:
         runner = unittest.TextTestRunner(verbosity=verbose)
-        runner.run(suite)
 
+    runner.run(suite)
     sys.stdout.flush()
     time.sleep(0.5)
 
 """
 Validate data has been inserted properly into database(s), if fails cannot continue with testing
 """
-def _validate_row_count(query_conn:str, db_name:str):
-    query = f"sql {db_name} format=json and stat=false and include=(power_plant, power_plant_pv, t1) SELECT count(*) AS row_count FROM rand_data"
-    is_ready = False
-    index = 0
+def validation_test(query_conn:str, db_name:str, test_name:str, ignore_skip:bool=True, verbose:int=2):
+    print("Validating `system_query` exists and table row count")
+    sys.stdout.flush()
+    time.sleep(0.5)
 
-    while is_ready is False and index < 3:
-        result = get_data(conn=query_conn, query=query)
-        data = result.json().get('Query')[0]
-        if data.get('row_count') == 3105:
-            is_ready = True
-        else:
-            time.sleep(30)
-            index += 1
+    TestQueryDataReady.conn = query_conn
+    TestQueryDataReady.db_name = db_name
 
-    return is_ready
+    _run_test(test_class_name=TestQueryDataReady, test_name=test_name, ignore_skip=ignore_skip, verbose=verbose)
 
-
-
+    return TestQueryDataReady.testing_ready
 
 def anylog_test(query_conn:str, operator_conn:str, db_name:str, test_name:str, ignore_skip:bool=False, verbose:int=2):
     print("Testing related to Node status and configuration")
@@ -209,17 +210,11 @@ def main():
 
 
 
-    print("Validate Data has been Inserted")
-    sys.stdout.flush()
-    time.sleep(0.5)
-    is_ready = _validate_row_count(query_conn=args.query, db_name=args.db_name)
-    if not is_ready:
-        print(f"Issue with loaded data, cannot gurantee consistent results for testing, thus exiting")
-        exit(1)
 
+    testing_ready = validation_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=True, verbose=args.verbose)
 
     # run query test
-    if not args.skip_test:
+    if not args.skip_test and testing_ready:
         selected_tests = {}
         if args.select_test:
             for test_case in args.select_test.strip().split(","):
