@@ -183,7 +183,7 @@ def main():
         --select-test       SELECT_TEST         (comma separated) specific test(s) to run
     """
     parse = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, epilog=f"\nList of Tests {_print_test_cases()}")
-    parse.add_argument('--query',           required=False, type=str,                         default=None, help="Query node IP:port")
+    parse.add_argument('--query',           required=True, type=str,                         default=None, help="Query node IP:port")
     parse.add_argument('--operator',        required=False, type=str,                         default=None, help="Comma-separated operator node IPs")
     parse.add_argument('--db-name',         required=False, type=str,                         default=None, help="Logical database name")
     parse.add_argument('--sort-timestamps', required=False, type=bool, nargs='?', const=True, default=False, help='Insert values in chronological order')

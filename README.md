@@ -161,3 +161,8 @@ python3 anylog_test_suit.py \
 
 3. Rerun testing against the updated code
 
+
+### Todo
+1. fix insertion for POST and MQTT / remove data (and policies)
+2. enhance to include security (TPM) testing 
+3. enhance to deploy nodes on the fly
