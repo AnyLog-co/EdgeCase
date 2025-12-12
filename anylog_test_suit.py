@@ -198,8 +198,8 @@ def main():
 
     args.operator = args.operator.split(",")
 
-
     # insert data
+    testing_ready = True
     if not args.skip_insert:
         print("Inserting Data")
         sys.stdout.flush()
@@ -208,10 +208,7 @@ def main():
         flush_buffer(conn=args.operator)
         insert_data_null(conns=args.operator, db_name=args.db_name)
 
-
-
-
-    testing_ready = validation_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=True, verbose=args.verbose)
+        testing_ready = validation_test(query_conn=args.query, db_name=args.db_name, test_name=args.select_test, ignore_skip=True, verbose=args.verbose)
 
     # run query test
     if not args.skip_test and testing_ready:
@@ -239,7 +236,7 @@ def main():
                     sql_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
                 if test_case == "timestamp":
                     timestamp_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
-                elif test_case == 'null':
+                if test_case == 'null':
                     null_data_test(query_conn=args.query, db_name=args.db_name, test_name=selected_tests[test_case], ignore_skip=args.ignore_skip, verbose=args.verbose)
 
         else:

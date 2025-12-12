@@ -27,3 +27,6 @@ def insert_data(conns:list, db_name:str):
                 conn = random.choice(conns)
 
     rest_call.flush_buffer(conn=conn)
+
+if __name__ == '__main__':
+    insert_data(conns=['50.116.13.109:32149'], db_name='new_company')

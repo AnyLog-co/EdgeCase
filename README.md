@@ -61,6 +61,9 @@ List of Tests
 Add JSON file(s) to [data](data) directory - [insert_data.py](source/insert_data_files.py) will automatically grab the JSON file(s) 
 and publish them to the operator node(s).
 
+For new data files, the file name struct is `data.[table_name].0.0.json`, multiple files for the same table can have unique IDs. 
+The data generator script only cares about `[table_name]` value. 
+
 ### New Test Cases
 
 #### Option 1
