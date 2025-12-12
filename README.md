@@ -26,7 +26,7 @@ Sample commands can be found as part of [Validating Tests](#create-and-validate-
 
 ```shell
 unit-testing$ python3 .\anylog_test_suit.py --help 
-usage: anylog_test_suit.py [-h] [--query QUERY] [--operator OPERATOR] [--db-name DB_NAME] [--sort-timestamps [SORT_TIMESTAMPS]] [--batch [BATCH]]
+usage: edgecase_suite.py [-h] [--query QUERY] [--operator OPERATOR] [--db-name DB_NAME] [--sort-timestamps [SORT_TIMESTAMPS]] [--batch [BATCH]]
                            [--skip-insert [SKIP_INSERT]] [--skip-test [SKIP_TEST]] [--verbose VERBOSE] [--select-test SELECT_TEST]
 
 options:
@@ -60,6 +60,9 @@ List of Tests
 ### Adding New Data 
 Add JSON file(s) to [data](data) directory - [insert_data.py](source/insert_data_files.py) will automatically grab the JSON file(s) 
 and publish them to the operator node(s).
+
+For new data files, the file name struct is `data.[table_name].0.0.json`, multiple files for the same table can have unique IDs. 
+The data generator script only cares about `[table_name]` value. 
 
 ### New Test Cases
 
@@ -123,9 +126,9 @@ Implement a new test program all together
 3. Update `setUp()` with needed params 
 4. Create your own `test_` test cases 
 
-**Phase 2**: Update [anylog_test_suit.py](anylog_test_suit.py)
+**Phase 2**: Update [anylog_test_suit.py](edgecase_suite.py)
 1. Import the new class 
-2. Update [`_print_test_cases`](anylog_test_suit.py#L17) method with new nickname and call to generate list of tests
+2. Update [`_print_test_cases`](edgecase_suite.py#L17) method with new nickname and call to generate list of tests
 3. Above `main`, add a new function that calls the new unittest 
 4. Update `main` to call the new unittests under `if not args.skip_test`. 
 
@@ -139,16 +142,16 @@ docker run -it --detach-keys=ctrl-d \
   -e NODE_TYPE=master-operator \
 --network host --name anylog --rm anylogco/edgelake:latest 
 ```
-2. Run [anylog_test_suit.py](anylog_test_suit.py) until it passes with the right results 
+2. Run [anylog_test_suit.py](edgecase_suite.py) until it passes with the right results 
 ```shell
 # first time - insert data + run the full test 
-python3 anylog_test_suit.py \
+python3 edgecase_suite.py \
   --query [specify query]  \
   --operator [sepcify operator] \
   --db-name [db name]
 
 # Every consequent time, you can just run the failed/specific test(s)
-python3 anylog_test_suit.py \
+python3 edgecase_suite.py \
   --skip-insert \
   --query [specify query]  \
   --operator [sepcify operator] \
@@ -158,3 +161,8 @@ python3 anylog_test_suit.py \
 
 3. Rerun testing against the updated code
 
+
+### Todo
+1. fix insertion for POST and MQTT / remove data (and policies)
+2. enhance to include security (TPM) testing 
+3. enhance to deploy nodes on the fly
